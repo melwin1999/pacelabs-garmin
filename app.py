@@ -80,15 +80,18 @@ def build_garmin_workout(workout):
         if pace_seconds:
             speed = 1000 / pace_seconds
             print(f"[make_target] pace_seconds={pace_seconds}, speed={speed:.4f} m/s, targetValueOne={speed * 0.95:.4f}, targetValueTwo={speed * 1.05:.4f}")
-            return {
-                "workoutTargetTypeId": 5,
-                "workoutTargetTypeKey": "speed.zone",
-                "displayOrder": 5,
-                "targetValue1": speed * 0.95,
-                "targetValue2": speed * 1.05,
-                "targetValueUnit": "m/s",
-            }
+            return (
+                {"workoutTargetTypeId": 5, "workoutTargetTypeKey": "speed.zone", "displayOrder": 5},
+                speed * 0.95,
+                speed * 1.05,
+            )
         return None
+
+    def apply_target(step, target):
+        if target:
+            step.targetValueOne = target[1]
+            step.targetValueTwo = target[2]
+        return step
 
     if structure:
         order = 1
@@ -98,40 +101,55 @@ def build_garmin_workout(workout):
             pace_seconds = parse_pace(seg.get("pace")) or seg.get("pace_seconds")
             reps = seg.get("reps") or seg.get("repetitions") or 1
             target = make_target(pace_seconds)
+            t_dict = target[0] if target else None
             end_val = dist_m or 600.0
 
             if seg_type == "warmup":
-                steps.append(create_warmup_step(end_val, step_order=order, target_type=target))
+                step = create_warmup_step(end_val, step_order=order, target_type=t_dict)
+                apply_target(step, target)
+                steps.append(step)
                 order += 1
             elif seg_type == "cooldown":
-                steps.append(create_cooldown_step(end_val, step_order=order, target_type=target))
+                step = create_cooldown_step(end_val, step_order=order, target_type=t_dict)
+                apply_target(step, target)
+                steps.append(step)
                 order += 1
             elif seg_type == "interval" and reps > 1:
                 inner = []
                 inner_order = 1
-                inner.append(create_interval_step(end_val, step_order=inner_order, target_type=target))
+                step = create_interval_step(end_val, step_order=inner_order, target_type=t_dict)
+                apply_target(step, target)
+                inner.append(step)
                 inner_order += 1
                 rest_m = float(seg.get("rest_metres") or seg.get("rest_meters") or 200)
                 inner.append(create_interval_step(rest_m, step_order=inner_order))
                 steps.append(create_repeat_group(reps, inner, step_order=order))
                 order += 1
             else:
-                steps.append(create_interval_step(end_val, step_order=order, target_type=target))
+                step = create_interval_step(end_val, step_order=order, target_type=t_dict)
+                apply_target(step, target)
+                steps.append(step)
                 order += 1
     else:
         if wtype in ("easy", "long", "recovery"):
             target = make_target(pace_max)
+            t_dict = target[0] if target else None
+            main_step = create_interval_step(float(max(distance_m - 2000, 1000)), step_order=2, target_type=t_dict)
+            apply_target(main_step, target)
             steps = [
                 create_warmup_step(1000.0, step_order=1),
-                create_interval_step(float(max(distance_m - 2000, 1000)), step_order=2, target_type=target),
+                main_step,
                 create_cooldown_step(1000.0, step_order=3),
             ]
         elif wtype in ("tempo", "threshold", "fartlek", "progression"):
             avg_pace = int(((pace_min or 0) + (pace_max or 0)) / 2) if pace_min and pace_max else None
             target = make_target(avg_pace)
+            t_dict = target[0] if target else None
+            main_step = create_interval_step(float(max(distance_m - 2000, 1000)), step_order=2, target_type=t_dict)
+            apply_target(main_step, target)
             steps = [
                 create_warmup_step(1000.0, step_order=1),
-                create_interval_step(float(max(distance_m - 2000, 1000)), step_order=2, target_type=target),
+                main_step,
                 create_cooldown_step(1000.0, step_order=3),
             ]
         elif wtype == "intervals":
