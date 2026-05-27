@@ -93,6 +93,8 @@ def build_garmin_workout(workout):
             step.targetValueTwo = target[2]
         return step
 
+    dist_end_condition = {'conditionTypeId': 3, 'conditionTypeKey': 'distance', 'displayOrder': 3, 'displayable': True}
+
     if structure:
         order = 1
         for seg in structure:
@@ -107,11 +109,15 @@ def build_garmin_workout(workout):
 
             if seg_type == "warmup":
                 step = create_warmup_step(end_val, step_order=order, target_type=t_dict)
+                step.endCondition = dist_end_condition
+                step.endConditionValue = end_val
                 apply_target(step, target)
                 steps.append(step)
                 order += 1
             elif seg_type == "cooldown":
                 step = create_cooldown_step(end_val, step_order=order, target_type=t_dict)
+                step.endCondition = dist_end_condition
+                step.endConditionValue = end_val
                 apply_target(step, target)
                 steps.append(step)
                 order += 1
@@ -119,15 +125,22 @@ def build_garmin_workout(workout):
                 inner = []
                 inner_order = 1
                 step = create_interval_step(end_val, step_order=inner_order, target_type=t_dict)
+                step.endCondition = dist_end_condition
+                step.endConditionValue = end_val
                 apply_target(step, target)
                 inner.append(step)
                 inner_order += 1
                 rest_m = float(seg.get("rest_metres") or seg.get("rest_meters") or 200)
-                inner.append(create_interval_step(rest_m, step_order=inner_order))
+                rest_step = create_interval_step(rest_m, step_order=inner_order)
+                rest_step.endCondition = dist_end_condition
+                rest_step.endConditionValue = rest_m
+                inner.append(rest_step)
                 steps.append(create_repeat_group(reps, inner, step_order=order))
                 order += 1
             else:
                 step = create_interval_step(end_val, step_order=order, target_type=t_dict)
+                step.endCondition = dist_end_condition
+                step.endConditionValue = end_val
                 apply_target(step, target)
                 steps.append(step)
                 order += 1
