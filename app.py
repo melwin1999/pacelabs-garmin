@@ -64,67 +64,71 @@ def build_garmin_workout(workout):
     structure = workout.get("structure") or []
     steps = []
 
+    def make_target(pace_seconds=None):
+        if pace_seconds:
+            return {"endCondition": {"conditionTypeKey": "time", "conditionTypeId": 2},
+                    "targetType": {"workoutTargetTypeKey": "pace.zone", "workoutTargetTypeId": 6},
+                    "targetValueOne": pace_seconds * 0.9,
+                    "targetValueTwo": pace_seconds * 1.1}
+        return None
+
     if structure:
+        order = 1
         for seg in structure:
             seg_type = seg.get("type", "interval")
-            dur = int(seg.get("duration_seconds") or 0)
-            dist = int((seg.get("distance_km") or 0) * 1000)
+            dur = float(seg.get("duration_seconds") or 0)
+            dist = float((seg.get("distance_km") or 0) * 1000)
             reps = seg.get("repetitions", 1)
             target_pace = seg.get("pace_seconds")
-            step_kwargs = {}
-            if target_pace:
-                step_kwargs["target_type"] = "pace"
-                step_kwargs["target_value"] = target_pace
-            elif dist:
-                step_kwargs["end_condition"] = "distance"
-                step_kwargs["end_condition_value"] = dist
-            elif dur:
-                step_kwargs["end_condition"] = "time"
-                step_kwargs["end_condition_value"] = dur
+            target = make_target(target_pace)
+            end_val = dur or dist or 600.0
+
             if seg_type == "warmup":
-                steps.append(create_warmup_step(float(dur or dist or 600), **step_kwargs))
+                steps.append(create_warmup_step(end_val, step_order=order, target_type=target))
+                order += 1
             elif seg_type == "cooldown":
-                steps.append(create_cooldown_step(float(dur or dist or 600), **step_kwargs))
+                steps.append(create_cooldown_step(end_val, step_order=order, target_type=target))
+                order += 1
             elif seg_type == "repeat" and reps > 1:
                 inner = []
+                inner_order = 1
                 for child in seg.get("steps", []):
-                    c_dur = int(child.get("duration_seconds") or 0)
-                    c_dist = int((child.get("distance_km") or 0) * 1000)
+                    c_dur = float(child.get("duration_seconds") or 0)
+                    c_dist = float((child.get("distance_km") or 0) * 1000)
                     c_pace = child.get("pace_seconds")
-                    ck = {}
-                    if c_pace:
-                        ck["target_type"] = "pace"
-                        ck["target_value"] = c_pace
-                    inner.append(create_interval_step(float(c_dur or c_dist or 300), **ck))
-                steps.append(create_repeat_group(inner, reps))
+                    c_target = make_target(c_pace)
+                    c_val = c_dur or c_dist or 300.0
+                    inner.append(create_interval_step(c_val, step_order=inner_order, target_type=c_target))
+                    inner_order += 1
+                steps.append(create_repeat_group(reps, inner, step_order=order))
+                order += 1
             else:
-                steps.append(create_interval_step(float(dur or dist or 1800), **step_kwargs))
+                steps.append(create_interval_step(end_val, step_order=order, target_type=target))
+                order += 1
     else:
         if wtype in ("easy", "long", "recovery"):
-            target = {}
-            if pace_max:
-                target = {"target_type": "pace", "target_value": pace_max}
+            target = make_target(pace_max)
             steps = [
-                create_warmup_step(600.0),
-                create_interval_step(float(max(distance_m - 1200, 1000)), **target),
-                create_cooldown_step(600.0),
+                create_warmup_step(600.0, step_order=1),
+                create_interval_step(float(max(distance_m - 1200, 1000)), step_order=2, target_type=target),
+                create_cooldown_step(600.0, step_order=3),
             ]
         elif wtype in ("tempo", "threshold", "fartlek", "progression"):
             avg_pace = int(((pace_min or 0) + (pace_max or 0)) / 2) if pace_min and pace_max else None
-            target = {"target_type": "pace", "target_value": avg_pace} if avg_pace else {}
+            target = make_target(avg_pace)
             steps = [
-                create_warmup_step(1000.0),
-                create_interval_step(float(max(distance_m - 2000, 1000)), **target),
-                create_cooldown_step(1000.0),
+                create_warmup_step(1000.0, step_order=1),
+                create_interval_step(float(max(distance_m - 2000, 1000)), step_order=2, target_type=target),
+                create_cooldown_step(1000.0, step_order=3),
             ]
         elif wtype == "intervals":
             steps = [
-                create_warmup_step(1600.0),
-                create_interval_step(float(max(distance_m - 3200, 400))),
-                create_cooldown_step(1600.0),
+                create_warmup_step(1600.0, step_order=1),
+                create_interval_step(float(max(distance_m - 3200, 400)), step_order=2),
+                create_cooldown_step(1600.0, step_order=3),
             ]
         else:
-            steps = [create_interval_step(float(distance_m or 5000))]
+            steps = [create_interval_step(float(distance_m or 5000), step_order=1)]
 
     segment = WorkoutSegment(
         segmentOrder=1,
