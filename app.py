@@ -79,14 +79,13 @@ def build_garmin_workout(workout):
     def make_target(pace_seconds=None):
         if pace_seconds:
             pace_per_meter = pace_seconds / 1000
-            target = {
+            return {
                 "workoutTargetTypeId": 6,
                 "workoutTargetTypeKey": "pace.zone",
+                "displayOrder": 6,
                 "targetValueOne": pace_per_meter * 0.95,
                 "targetValueTwo": pace_per_meter * 1.05,
             }
-            print(f"[make_target] pace_seconds={pace_seconds}, pace_per_meter={pace_per_meter}, targetValueOne={target['targetValueOne']}, targetValueTwo={target['targetValueTwo']}")
-            return target
         return None
 
     if structure:
