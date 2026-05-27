@@ -98,6 +98,7 @@ def build_garmin_workout(workout):
         for seg in structure:
             seg_type = seg.get("type", "interval")
             dist_m = float((seg.get("km") or seg.get("distance_km") or 0) * 1000)
+            print(f"[structure] seg_type={seg_type}, dist_m={dist_m}")
             pace_seconds = parse_pace(seg.get("pace")) or seg.get("pace_seconds")
             reps = seg.get("reps") or seg.get("repetitions") or 1
             target = make_target(pace_seconds)
@@ -134,12 +135,12 @@ def build_garmin_workout(workout):
         if wtype in ("easy", "long", "recovery"):
             target = make_target(pace_max)
             t_dict = target[0] if target else None
-            main_step = create_interval_step(float(max(distance_m - 2000, 1000)), step_order=2, target_type=t_dict)
+            main_step = create_interval_step(float(max(distance_m - 1200, 400)), step_order=2, target_type=t_dict)
             apply_target(main_step, target)
             steps = [
-                create_warmup_step(1000.0, step_order=1),
+                create_warmup_step(600.0, step_order=1),
                 main_step,
-                create_cooldown_step(1000.0, step_order=3),
+                create_cooldown_step(600.0, step_order=3),
             ]
         elif wtype in ("tempo", "threshold", "fartlek", "progression"):
             avg_pace = int(((pace_min or 0) + (pace_max or 0)) / 2) if pace_min and pace_max else None
