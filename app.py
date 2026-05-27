@@ -87,8 +87,6 @@ def build_garmin_workout(workout):
             }
         return None
 
-    dist_end_condition = {"conditionTypeId": 3, "conditionTypeKey": "distance"}
-
     if structure:
         order = 1
         for seg in structure:
@@ -100,22 +98,22 @@ def build_garmin_workout(workout):
             end_val = dist_m or 600.0
 
             if seg_type == "warmup":
-                steps.append(create_warmup_step(end_val, step_order=order, end_condition=dist_end_condition, target_type=target))
+                steps.append(create_warmup_step(end_val, step_order=order, target_type=target))
                 order += 1
             elif seg_type == "cooldown":
-                steps.append(create_cooldown_step(end_val, step_order=order, end_condition=dist_end_condition, target_type=target))
+                steps.append(create_cooldown_step(end_val, step_order=order, target_type=target))
                 order += 1
             elif seg_type == "interval" and reps > 1:
                 inner = []
                 inner_order = 1
-                inner.append(create_interval_step(end_val, step_order=inner_order, end_condition=dist_end_condition, target_type=target))
+                inner.append(create_interval_step(end_val, step_order=inner_order, target_type=target))
                 inner_order += 1
                 rest_m = float(seg.get("rest_metres") or seg.get("rest_meters") or 200)
-                inner.append(create_interval_step(rest_m, step_order=inner_order, end_condition=dist_end_condition))
+                inner.append(create_interval_step(rest_m, step_order=inner_order))
                 steps.append(create_repeat_group(reps, inner, step_order=order))
                 order += 1
             else:
-                steps.append(create_interval_step(end_val, step_order=order, end_condition=dist_end_condition, target_type=target))
+                steps.append(create_interval_step(end_val, step_order=order, target_type=target))
                 order += 1
     else:
         if wtype in ("easy", "long", "recovery"):
