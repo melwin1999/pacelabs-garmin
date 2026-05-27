@@ -130,10 +130,8 @@ def build_garmin_workout(workout):
                 apply_target(step, target)
                 inner.append(step)
                 inner_order += 1
-                rest_m = float(seg.get("rest_metres") or seg.get("rest_meters") or 200)
-                rest_step = create_interval_step(rest_m, step_order=inner_order)
-                rest_step.endCondition = dist_end_condition
-                rest_step.endConditionValue = rest_m
+                rest_secs = float(seg.get("rest_seconds") or 120)
+                rest_step = create_interval_step(rest_secs, step_order=inner_order)
                 inner.append(rest_step)
                 steps.append(create_repeat_group(reps, inner, step_order=order))
                 order += 1
