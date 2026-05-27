@@ -78,8 +78,8 @@ def build_garmin_workout(workout):
 
     def make_target(pace_seconds=None):
         if pace_seconds:
-            pace_per_meter = pace_seconds / 1000
-            speed = 1 / pace_per_meter
+            speed = 1000 / pace_seconds
+            print(f"[make_target] pace_seconds={pace_seconds}, speed={speed:.4f} m/s, targetValueOne={speed * 0.95:.4f}, targetValueTwo={speed * 1.05:.4f}")
             return {
                 "workoutTargetTypeId": 5,
                 "workoutTargetTypeKey": "speed.zone",
