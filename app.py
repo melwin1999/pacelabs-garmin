@@ -84,8 +84,9 @@ def build_garmin_workout(workout):
                 "workoutTargetTypeId": 5,
                 "workoutTargetTypeKey": "speed.zone",
                 "displayOrder": 5,
-                "targetValueOne": speed * 0.95,
-                "targetValueTwo": speed * 1.05,
+                "targetValue1": speed * 0.95,
+                "targetValue2": speed * 1.05,
+                "targetValueUnit": "m/s",
             }
         return None
 
