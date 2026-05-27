@@ -3,3 +3,4 @@ garminconnect==0.3.3
 curl_cffi
 ua-generator
 gunicorn
+pydantic
