@@ -293,6 +293,20 @@ def push_week():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/test-activity/<activity_id>", methods=["GET"])
+def test_activity(activity_id):
+    try:
+        email, tokens = get_garmin_tokens()
+        if not email or not tokens:
+            return jsonify({"error": "Garmin not connected"}), 401
+        client, token_dir = get_garmin_client(email, tokens)
+        details = client.get_activity_details(activity_id)
+        splits = client.get_activity_splits(activity_id)
+        save_garmin_tokens(token_dir)
+        return jsonify({"details": details, "splits": splits})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
