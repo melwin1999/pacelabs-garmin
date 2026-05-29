@@ -293,6 +293,79 @@ def push_week():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/garmin/activity/fetch', methods=['POST'])
+def fetch_activity():
+    data = request.get_json()
+    workout_date = data.get('workout_date')
+    expected_distance_km = data.get('expected_distance_km')
+
+    if not workout_date:
+        return jsonify({'error': 'workout_date required'}), 400
+
+    try:
+        email, tokens = get_garmin_tokens()
+        if not email or not tokens:
+            return jsonify({'error': 'Garmin not connected'}), 401
+        client, token_dir = get_garmin_client(email, tokens)
+
+        activities = client.get_activities_by_date(workout_date, workout_date, 'running')
+
+        if not activities:
+            save_garmin_tokens(token_dir)
+            return jsonify({'error': 'No activities found on this date'}), 404
+
+        matched_activity = None
+        if expected_distance_km and expected_distance_km > 0:
+            for activity in activities:
+                activity_distance_km = activity.get('distance', 0) / 1000
+                tolerance = expected_distance_km * 0.15
+                if abs(activity_distance_km - expected_distance_km) <= tolerance:
+                    matched_activity = activity
+                    break
+
+        if not matched_activity:
+            matched_activity = activities[0]
+
+        activity_id = matched_activity['activityId']
+
+        splits_data = client.get_activity_splits(activity_id)
+        lap_dtos = splits_data.get('lapDTOs', [])
+
+        processed_laps = []
+        for lap in lap_dtos:
+            avg_speed_mps = lap.get('averageSpeed', 0)
+            avg_pace_sec_per_km = round(1000 / avg_speed_mps) if avg_speed_mps > 0 else None
+            processed_laps.append({
+                'lap_index': lap.get('lapIndex'),
+                'wkt_step_index': lap.get('wktStepIndex'),
+                'intensity_type': lap.get('intensityType'),
+                'distance_m': round(lap.get('distance', 0)),
+                'duration_seconds': round(lap.get('duration', 0)),
+                'avg_pace_sec_per_km': avg_pace_sec_per_km,
+                'avg_hr': lap.get('averageHR'),
+                'max_hr': lap.get('maxHR'),
+                'avg_speed_mps': avg_speed_mps,
+                'compliance_score': lap.get('directWorkoutComplianceScore'),
+                'start_time_gmt': lap.get('startTimeGMT'),
+            })
+
+        summary = {
+            'garmin_activity_id': activity_id,
+            'activity_name': matched_activity.get('activityName'),
+            'total_distance_km': round(matched_activity.get('distance', 0) / 1000, 2),
+            'duration_seconds': round(matched_activity.get('duration', 0)),
+            'avg_hr': matched_activity.get('averageHR'),
+            'avg_speed_mps': matched_activity.get('averageSpeed'),
+            'laps': processed_laps,
+            'source': 'garmin',
+        }
+
+        save_garmin_tokens(token_dir)
+        return jsonify(summary)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
