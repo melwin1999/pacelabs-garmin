@@ -146,29 +146,33 @@ def build_garmin_workout(workout):
         if wtype in ("easy", "long", "recovery"):
             target = make_target(pace_max)
             t_dict = target[0] if target else None
-            main_step = create_interval_step(float(max(distance_m - 1200, 400)), step_order=2, target_type=t_dict)
+            main_step = create_interval_step(float(distance_m), step_order=1, target_type=t_dict)
             apply_target(main_step, target)
-            steps = [
-                create_warmup_step(600.0, step_order=1),
-                main_step,
-                create_cooldown_step(600.0, step_order=3),
-            ]
+            steps = [main_step]
         elif wtype in ("tempo", "threshold", "fartlek", "progression"):
             avg_pace = int(((pace_min or 0) + (pace_max or 0)) / 2) if pace_min and pace_max else None
             target = make_target(avg_pace)
             t_dict = target[0] if target else None
-            main_step = create_interval_step(float(max(distance_m - 2000, 1000)), step_order=2, target_type=t_dict)
+            main_step = create_interval_step(float(max(distance_m - 1200, 1000)), step_order=2, target_type=t_dict)
             apply_target(main_step, target)
-            steps = [
-                create_warmup_step(1000.0, step_order=1),
-                main_step,
-                create_cooldown_step(1000.0, step_order=3),
-            ]
+            warmup_step = create_warmup_step(600.0, step_order=1)
+            warmup_step.endCondition = dist_end_condition
+            warmup_step.endConditionValue = 600.0
+            cooldown_step = create_cooldown_step(600.0, step_order=3)
+            cooldown_step.endCondition = dist_end_condition
+            cooldown_step.endConditionValue = 600.0
+            steps = [warmup_step, main_step, cooldown_step]
         elif wtype == "intervals":
+            warmup_step = create_warmup_step(1000.0, step_order=1)
+            warmup_step.endCondition = dist_end_condition
+            warmup_step.endConditionValue = 1000.0
+            cooldown_step = create_cooldown_step(1000.0, step_order=3)
+            cooldown_step.endCondition = dist_end_condition
+            cooldown_step.endConditionValue = 1000.0
             steps = [
-                create_warmup_step(1600.0, step_order=1),
-                create_interval_step(float(max(distance_m - 3200, 400)), step_order=2),
-                create_cooldown_step(1600.0, step_order=3),
+                warmup_step,
+                create_interval_step(float(max(distance_m - 2000, 400)), step_order=2),
+                cooldown_step,
             ]
         else:
             steps = [create_interval_step(float(distance_m or 5000), step_order=1)]
