@@ -112,17 +112,15 @@ def build_garmin_workout(workout):
             end_val = dist_m or 600.0
 
             if seg_type == "warmup":
-                step = create_warmup_step(end_val, step_order=order, target_type=t_dict)
+                step = create_warmup_step(end_val, step_order=order)
                 step.endCondition = dist_end_condition
                 step.endConditionValue = end_val
-                apply_target(step, target)
                 steps.append(step)
                 order += 1
             elif seg_type == "cooldown":
-                step = create_cooldown_step(end_val, step_order=order, target_type=t_dict)
+                step = create_cooldown_step(end_val, step_order=order)
                 step.endCondition = dist_end_condition
                 step.endConditionValue = end_val
-                apply_target(step, target)
                 steps.append(step)
                 order += 1
             elif seg_type == "interval" and reps > 1:
