@@ -102,6 +102,7 @@ def build_garmin_workout(workout):
             dist_m = float((seg.get("km") or seg.get("distance_km") or 0) * 1000)
             print(f"[structure] seg_type={seg_type}, dist_m={dist_m}")
             pace_seconds = parse_pace(seg.get("pace")) or seg.get("pace_seconds")
+            print(f"[structure] raw pace={seg.get('pace')!r}, pace_seconds={pace_seconds}")
             reps = seg.get("reps") or seg.get("repetitions") or 1
             target = make_target(pace_seconds)
             t_dict = target[0] if target else None
