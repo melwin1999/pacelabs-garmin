@@ -144,16 +144,22 @@ def build_garmin_workout(workout):
                 order += 1
     else:
         if wtype in ("easy", "long", "recovery"):
+            print(f"[easy/long/recovery] wtype={wtype}, pace_max={pace_max}")
             target = make_target(pace_max)
             t_dict = target[0] if target else None
             main_step = create_interval_step(float(distance_m), step_order=1, target_type=t_dict)
+            main_step.endCondition = dist_end_condition
+            main_step.endConditionValue = float(distance_m)
             apply_target(main_step, target)
             steps = [main_step]
         elif wtype in ("tempo", "threshold", "fartlek", "progression"):
             avg_pace = int(((pace_min or 0) + (pace_max or 0)) / 2) if pace_min and pace_max else None
+            print(f"[tempo/threshold] wtype={wtype}, pace_min={pace_min}, pace_max={pace_max}, avg_pace={avg_pace}")
             target = make_target(avg_pace)
             t_dict = target[0] if target else None
             main_step = create_interval_step(float(max(distance_m - 1200, 1000)), step_order=2, target_type=t_dict)
+            main_step.endCondition = dist_end_condition
+            main_step.endConditionValue = float(max(distance_m - 1200, 1000))
             apply_target(main_step, target)
             warmup_step = create_warmup_step(600.0, step_order=1)
             warmup_step.endCondition = dist_end_condition
@@ -169,9 +175,12 @@ def build_garmin_workout(workout):
             cooldown_step = create_cooldown_step(1000.0, step_order=3)
             cooldown_step.endCondition = dist_end_condition
             cooldown_step.endConditionValue = 1000.0
+            main_step = create_interval_step(float(max(distance_m - 2000, 400)), step_order=2)
+            main_step.endCondition = dist_end_condition
+            main_step.endConditionValue = float(max(distance_m - 2000, 400))
             steps = [
                 warmup_step,
-                create_interval_step(float(max(distance_m - 2000, 400)), step_order=2),
+                main_step,
                 cooldown_step,
             ]
         else:
