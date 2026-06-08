@@ -27,11 +27,11 @@ Workouts arrive with structure like:
 
 ## Garmin pace target format (confirmed from real Garmin API)
 ```python
-step.targetType = {"workoutTargetTypeId": 6, "workoutTargetTypeKey": "pace.zone", "displayOrder": 6}
+step.targetType = {"workoutTargetTypeId": 5, "workoutTargetTypeKey": "speed.zone", "displayOrder": 5}
 step.targetValueOne = 1000 / pace_seconds * 0.95  # m/s, slower bound
 step.targetValueTwo = 1000 / pace_seconds * 1.05  # m/s, faster bound
 ```
-Garmin website shows kph — watch shows min/km. This is expected.
+`speed.zone` (id 5) is correct — the garminconnect library has no pace target type, so speed is used. The Garmin watch converts speed to min/km for display. The website showing kph is expected.
 
 ## Distance end conditions
 ```python
