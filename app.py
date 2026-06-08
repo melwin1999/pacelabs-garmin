@@ -147,12 +147,9 @@ def build_garmin_workout(workout):
     else:
         if wtype in ("easy", "long", "recovery"):
             print(f"[easy/long/recovery] wtype={wtype}, pace_max={pace_max}")
-            target = make_target(pace_max)
-            t_dict = target[0] if target else None
-            main_step = create_interval_step(float(distance_m), step_order=1, target_type=t_dict)
+            main_step = create_interval_step(float(distance_m), step_order=1)
             main_step.endCondition = dist_end_condition
             main_step.endConditionValue = float(distance_m)
-            apply_target(main_step, target)
             steps = [main_step]
         elif wtype in ("tempo", "threshold", "fartlek", "progression"):
             avg_pace = int(((pace_min or 0) + (pace_max or 0)) / 2) if pace_min and pace_max else None
