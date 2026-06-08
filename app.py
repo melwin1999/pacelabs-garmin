@@ -52,13 +52,16 @@ def get_garmin_client(email, tokens):
     return client, str(token_dir)
 
 def parse_pace(pace_str):
-    """Convert '7:50/km' string to seconds per km integer."""
+    """Convert pace strings like '6:43/km', '6:43 min/km', '6:43' to seconds per km integer."""
     if not pace_str:
         return None
     try:
-        pace_str = pace_str.replace("/km", "").strip()
-        parts = pace_str.split(":")
-        return int(parts[0]) * 60 + int(parts[1])
+        import re
+        # Find the first MM:SS pattern in the string, ignore everything else
+        match = re.search(r'(\d+):(\d+)', str(pace_str))
+        if not match:
+            return None
+        return int(match.group(1)) * 60 + int(match.group(2))
     except Exception:
         return None
 
