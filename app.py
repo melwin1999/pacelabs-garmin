@@ -137,6 +137,21 @@ def build_garmin_workout(workout):
                 inner.append(rest_step)
                 steps.append(create_repeat_group(reps, inner, step_order=order))
                 order += 1
+            elif seg_type == "strides" and reps > 1:
+                # Each rep is its own distance step (distanceM per stride, else km), no pace target
+                stride_m = float(seg.get("distanceM") or end_val)
+                inner = []
+                inner_order = 1
+                step = create_interval_step(stride_m, step_order=inner_order)
+                step.endCondition = dist_end_condition
+                step.endConditionValue = stride_m
+                inner.append(step)
+                inner_order += 1
+                rest_secs = float(seg.get("rest_seconds") or 60)
+                rest_step = create_interval_step(rest_secs, step_order=inner_order)
+                inner.append(rest_step)
+                steps.append(create_repeat_group(reps, inner, step_order=order))
+                order += 1
             else:
                 step = create_interval_step(end_val, step_order=order, target_type=t_dict)
                 step.endCondition = dist_end_condition
