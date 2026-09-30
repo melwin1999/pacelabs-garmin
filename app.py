@@ -69,7 +69,7 @@ def build_garmin_workout(workout):
     from garminconnect.workout import (
         RunningWorkout, WorkoutSegment,
         create_warmup_step, create_cooldown_step,
-        create_interval_step, create_repeat_group,
+        create_interval_step, create_recovery_step, create_repeat_group,
     )
     wtype = workout.get("type", "easy")
     name = workout.get("name", "Run")
@@ -133,7 +133,8 @@ def build_garmin_workout(workout):
                 inner.append(step)
                 inner_order += 1
                 rest_secs = float(seg.get("rest_seconds") or 120)
-                rest_step = create_interval_step(rest_secs, step_order=inner_order)
+                rest_step = create_recovery_step(rest_secs, step_order=inner_order)
+                rest_step.description = "Easy jog"
                 inner.append(rest_step)
                 steps.append(create_repeat_group(reps, inner, step_order=order))
                 order += 1
@@ -145,10 +146,12 @@ def build_garmin_workout(workout):
                 step = create_interval_step(stride_m, step_order=inner_order)
                 step.endCondition = dist_end_condition
                 step.endConditionValue = stride_m
+                step.description = "Stride: fast, relaxed"
                 inner.append(step)
                 inner_order += 1
                 rest_secs = float(seg.get("rest_seconds") or 60)
-                rest_step = create_interval_step(rest_secs, step_order=inner_order)
+                rest_step = create_recovery_step(rest_secs, step_order=inner_order)
+                rest_step.description = "Walk or slow jog"
                 inner.append(rest_step)
                 steps.append(create_repeat_group(reps, inner, step_order=order))
                 order += 1
