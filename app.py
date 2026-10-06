@@ -325,9 +325,12 @@ def push_week():
 
 @app.route('/garmin/activity/fetch', methods=['POST'])
 def fetch_activity():
+    from datetime import date, timedelta
     data = request.get_json()
     workout_date = data.get('workout_date')
     expected_distance_km = data.get('expected_distance_km')
+    # When given, fetch exactly this activity instead of choosing one for the date.
+    wanted_id = data.get('garmin_activity_id')
 
     if not workout_date:
         return jsonify({'error': 'workout_date required'}), 400
@@ -338,23 +341,36 @@ def fetch_activity():
             return jsonify({'error': 'Garmin not connected'}), 401
         client, token_dir = get_garmin_client(email, tokens)
 
-        activities = client.get_activities_by_date(workout_date, workout_date, 'running')
-
-        if not activities:
-            save_garmin_tokens(token_dir)
-            return jsonify({'error': 'No activities found on this date'}), 404
-
         matched_activity = None
-        if expected_distance_km and expected_distance_km > 0:
-            for activity in activities:
-                activity_distance_km = activity.get('distance', 0) / 1000
-                tolerance = expected_distance_km * 0.15
-                if abs(activity_distance_km - expected_distance_km) <= tolerance:
-                    matched_activity = activity
-                    break
+        if wanted_id:
+            # ±1 day: the workout date is a London date, Garmin's search uses device-local dates.
+            d = date.fromisoformat(workout_date)
+            window = client.get_activities_by_date((d - timedelta(days=1)).isoformat(), (d + timedelta(days=1)).isoformat(), 'running') or []
+            matched_activity = next((a for a in window if str(a.get('activityId')) == str(wanted_id)), None)
+            if not matched_activity:
+                save_garmin_tokens(token_dir)
+                return jsonify({'error': 'activity_not_found', 'message': f'Garmin activity {wanted_id} not found around {workout_date}'}), 404
+        else:
+            activities = client.get_activities_by_date(workout_date, workout_date, 'running')
 
-        if not matched_activity:
-            matched_activity = activities[0]
+            if not activities:
+                save_garmin_tokens(token_dir)
+                return jsonify({'error': 'No activities found on this date'}), 404
+
+            if expected_distance_km and expected_distance_km > 0:
+                for activity in activities:
+                    activity_distance_km = activity.get('distance', 0) / 1000
+                    tolerance = expected_distance_km * 0.15
+                    if abs(activity_distance_km - expected_distance_km) <= tolerance:
+                        matched_activity = activity
+                        break
+                # No "first run of the day" fallback when a distance is planned: attaching
+                # the wrong run is worse than attaching none.
+                if not matched_activity:
+                    save_garmin_tokens(token_dir)
+                    return jsonify({'error': 'no_matching_activity', 'message': f'No run on {workout_date} within 15% of {expected_distance_km} km'}), 404
+            else:
+                matched_activity = activities[0]
 
         activity_id = matched_activity['activityId']
 
@@ -382,6 +398,8 @@ def fetch_activity():
         summary = {
             'garmin_activity_id': activity_id,
             'activity_name': matched_activity.get('activityName'),
+            'start_time_local': matched_activity.get('startTimeLocal'),
+            'start_time_gmt': matched_activity.get('startTimeGMT'),
             'total_distance_km': round(matched_activity.get('distance', 0) / 1000, 2),
             'duration_seconds': round(matched_activity.get('duration', 0)),
             'avg_hr': matched_activity.get('averageHR'),
@@ -394,7 +412,7 @@ def fetch_activity():
         return jsonify(summary)
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return garmin_error_response(e)
 
 def garmin_error_response(e):
     """Map garminconnect exceptions to a status + code the PaceLabs app can show."""

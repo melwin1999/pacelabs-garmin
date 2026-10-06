@@ -44,7 +44,7 @@ step.endConditionValue = distance_metres
 - `POST /connect` — connect Garmin account (email + password)
 - `POST /push-workout` — push single workout
 - `POST /push-week` — push all workouts for current week
-- `POST /garmin/activity/fetch` — splits for the run on a workout's date
+- `POST /garmin/activity/fetch` — splits for one run. With `garmin_activity_id`, fetches exactly that activity (searches workout_date ±1 day). Without it, picks the run on workout_date within 15% of `expected_distance_km`; 404 `no_matching_activity` if none (no first-run-of-day fallback)
 - `GET /garmin/activities/recent?days=60` — running activities, newest first (read-only on workouts). Errors: 401 `not_connected`/`garmin_auth`, 429 `garmin_rate_limited`, 502 `garmin_error`
 
 ## Tokens
