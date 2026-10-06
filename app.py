@@ -425,56 +425,6 @@ def garmin_error_response(e):
         return jsonify({'error': 'garmin_rate_limited', 'message': str(e)}), 429
     return jsonify({'error': 'garmin_error', 'message': str(e)}), 502
 
-WEATHER_MAX_PER_CALL = 10
-
-def f_to_c(f):
-    return round((f - 32) * 5 / 9, 1) if isinstance(f, (int, float)) else None
-
-def attach_weather(client, runs):
-    """Weather from Garmin's activity weather record (nearest station), once per activity.
-
-    Skips activities whose weather is already stored in garmin_activities. If that table
-    doesn't exist yet nothing can be stored, so no weather is fetched at all. At most
-    WEATHER_MAX_PER_CALL lookups per request; the rest are picked up on the next sync.
-    """
-    ids = [r['garmin_activity_id'] for r in runs if r.get('garmin_activity_id')]
-    if not ids:
-        return
-    try:
-        stored = supabase_request(
-            "GET",
-            f"garmin_activities?select=activity_id&weather_fetched_at=not.is.null&activity_id=in.({','.join(str(i) for i in ids)})",
-        )
-        have = {int(s['activity_id']) for s in stored}
-    except Exception as e:
-        print(f"[weather] garmin_activities unavailable, skipping weather: {e}")
-        return
-
-    fetched = 0
-    for r in runs:
-        if fetched >= WEATHER_MAX_PER_CALL:
-            break
-        aid = r.get('garmin_activity_id')
-        if not aid or int(aid) in have:
-            continue
-        fetched += 1
-        try:
-            w = client.get_activity_weather(str(aid))
-        except Exception as e:
-            # Transient failure: leave weather_fetched False so it's retried next sync.
-            print(f"[weather] {aid}: {e}")
-            continue
-        r['weather_fetched'] = True
-        if w and w.get('temp') is not None:
-            # Garmin's weather record is in Fahrenheit.
-            r['weather'] = {
-                'temp_c': f_to_c(w.get('temp')),
-                'apparent_temp_c': f_to_c(w.get('apparentTemp')),
-                'humidity_pct': w.get('relativeHumidity'),
-                'desc': (w.get('weatherTypeDTO') or {}).get('desc'),
-                'station': (w.get('weatherStationDTO') or {}).get('name'),
-            }
-
 @app.route('/garmin/activities/recent', methods=['GET'])
 def recent_activities():
     """Running activities from the last `days` days (default 60), newest first. Read-only on workouts."""
@@ -516,13 +466,8 @@ def recent_activities():
                 'training_load': a.get('activityTrainingLoad'),
                 'aerobic_te': a.get('aerobicTrainingEffect'),
                 'elevation_gain_m': a.get('elevationGain'),
-                'weather': None,
-                'weather_fetched': False,
             })
         runs.sort(key=lambda r: r['start_time_local'] or '', reverse=True)
-
-        if request.args.get('weather', '1') != '0':
-            attach_weather(client, runs)
 
         save_garmin_tokens(token_dir)
         return jsonify({'days': days, 'activities': runs})
