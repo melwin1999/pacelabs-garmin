@@ -46,6 +46,9 @@ step.endConditionValue = distance_metres
 - `POST /push-week` — push all workouts for current week
 - `POST /garmin/activity/fetch` — splits for one run. With `garmin_activity_id`, fetches exactly that activity (searches workout_date ±1 day). Without it, picks the run on workout_date within 15% of `expected_distance_km`; 404 `no_matching_activity` if none (no first-run-of-day fallback)
 - `GET /garmin/activities/recent?days=60` — running activities, newest first (read-only on workouts). Errors: 401 `not_connected`/`garmin_auth`, 429 `garmin_rate_limited`, 502 `garmin_error`
+  - Each run includes HR zone seconds, training load, aerobic TE, elevation gain, and `weather` (°C, from Garmin's activity weather record, not the watch sensor).
+  - Weather is fetched once per activity: activities with `weather_fetched_at` already set in Supabase `garmin_activities` are skipped, max 10 lookups per call (keeps a cold-start request under the app's 55s timeout). If that table doesn't exist, no weather is fetched. `?weather=0` disables it.
+  - Garmin's weather `temp` is Fahrenheit; converted with `f_to_c`.
 
 ## Tokens
 Garmin OAuth tokens stored in Supabase `user_integrations` table, `garmin_tokens` jsonb field.
