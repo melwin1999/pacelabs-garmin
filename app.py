@@ -396,6 +396,63 @@ def fetch_activity():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+def garmin_error_response(e):
+    """Map garminconnect exceptions to a status + code the PaceLabs app can show."""
+    import garminconnect
+    auth_err = getattr(garminconnect, 'GarminConnectAuthenticationError', None)
+    rate_err = getattr(garminconnect, 'GarminConnectTooManyRequestsError', None)
+    if auth_err and isinstance(e, auth_err):
+        return jsonify({'error': 'garmin_auth', 'message': str(e)}), 401
+    if rate_err and isinstance(e, rate_err):
+        return jsonify({'error': 'garmin_rate_limited', 'message': str(e)}), 429
+    return jsonify({'error': 'garmin_error', 'message': str(e)}), 502
+
+@app.route('/garmin/activities/recent', methods=['GET'])
+def recent_activities():
+    """Running activities from the last `days` days (default 60), newest first. Read-only on workouts."""
+    from datetime import date, timedelta
+    try:
+        days = max(1, min(int(request.args.get('days', 60)), 365))
+    except ValueError:
+        return jsonify({'error': 'days must be an integer'}), 400
+
+    try:
+        email, tokens = get_garmin_tokens()
+        if not email or not tokens:
+            return jsonify({'error': 'not_connected', 'message': 'Garmin not connected'}), 401
+        client, token_dir = get_garmin_client(email, tokens)
+
+        today = date.today()
+        start = (today - timedelta(days=days)).isoformat()
+        # +1 day so a run on "today" in a timezone ahead of the server isn't cut off
+        end = (today + timedelta(days=1)).isoformat()
+        activities = client.get_activities_by_date(start, end, 'running') or []
+
+        runs = []
+        for a in activities:
+            distance_m = a.get('distance') or 0
+            duration = a.get('movingDuration') or a.get('duration') or 0
+            runs.append({
+                'garmin_activity_id': a.get('activityId'),
+                'name': a.get('activityName'),
+                'start_time_local': a.get('startTimeLocal'),
+                'start_time_gmt': a.get('startTimeGMT'),
+                'activity_type': (a.get('activityType') or {}).get('typeKey'),
+                'distance_km': round(distance_m / 1000, 2),
+                'duration_seconds': round(a.get('duration') or 0),
+                'moving_seconds': round(duration),
+                'avg_pace_sec_per_km': round(duration / (distance_m / 1000)) if distance_m > 0 and duration > 0 else None,
+                'avg_hr': a.get('averageHR'),
+                'garmin_workout_id': a.get('workoutId'),
+            })
+        runs.sort(key=lambda r: r['start_time_local'] or '', reverse=True)
+
+        save_garmin_tokens(token_dir)
+        return jsonify({'days': days, 'activities': runs})
+
+    except Exception as e:
+        return garmin_error_response(e)
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

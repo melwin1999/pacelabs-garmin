@@ -44,6 +44,8 @@ step.endConditionValue = distance_metres
 - `POST /connect` — connect Garmin account (email + password)
 - `POST /push-workout` — push single workout
 - `POST /push-week` — push all workouts for current week
+- `POST /garmin/activity/fetch` — splits for the run on a workout's date
+- `GET /garmin/activities/recent?days=60` — running activities, newest first (read-only on workouts). Errors: 401 `not_connected`/`garmin_auth`, 429 `garmin_rate_limited`, 502 `garmin_error`
 
 ## Tokens
 Garmin OAuth tokens stored in Supabase `user_integrations` table, `garmin_tokens` jsonb field.
